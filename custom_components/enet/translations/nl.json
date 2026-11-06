@@ -1,0 +1,88 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Apparaat is al geconfigureerd",
+            "discovery_not_supported": "Er is een Enet Smart Home server gevonden, maar instellen via automatische detectie wordt nog niet ondersteund. Voeg de integratie handmatig toe.",
+            "reconfigure_successful": "Opnieuw configureren is gelukt",
+            "reauth_successful": "Opnieuw aanmelden is gelukt"
+        },
+        "error": {
+            "cannot_connect": "Kan geen verbinding maken",
+            "invalid_auth": "Ongeldige inloggegevens",
+            "unknown": "Onverwachte fout",
+            "already_configured": "Apparaat is al geconfigureerd"
+        },
+        "step": {
+            "user": {
+                "title": "Verbinden met de Enet Smart Home server",
+                "description": "Vul het adres en de inloggegevens van je Enet Smart Home server in.",
+                "data": {
+                    "url": "URL",
+                    "username": "Gebruikersnaam",
+                    "password": "Wachtwoord"
+                },
+                "data_description": {
+                    "url": "Adres van de Enet Smart Home server, bijvoorbeeld http://192.168.1.10. Gebruik https:// als de server daarvoor is ingesteld.",
+                    "username": "Gebruikersnaam om in te loggen op de Enet Smart Home server.",
+                    "password": "Wachtwoord van de gebruiker."
+                }
+            },
+            "reconfigure": {
+                "title": "Enet Smart Home server opnieuw configureren",
+                "description": "Wijzig het adres of de inloggegevens van je Enet Smart Home server.",
+                "data": {
+                    "url": "URL",
+                    "username": "Gebruikersnaam",
+                    "password": "Wachtwoord"
+                },
+                "data_description": {
+                    "url": "Adres van de Enet Smart Home server, bijvoorbeeld http://192.168.1.10. Gebruik https:// als de server daarvoor is ingesteld.",
+                    "username": "Gebruikersnaam om in te loggen op de Enet Smart Home server.",
+                    "password": "Wachtwoord van de gebruiker."
+                }
+            },
+            "reauth_confirm": {
+                "title": "Opnieuw aanmelden",
+                "description": "De Enet Smart Home server op {url} heeft de aanmelding geweigerd. Vul de gebruikersnaam en het wachtwoord opnieuw in.",
+                "data": {
+                    "username": "Gebruikersnaam",
+                    "password": "Wachtwoord"
+                },
+                "data_description": {
+                    "username": "Gebruikersnaam om in te loggen op de Enet Smart Home server.",
+                    "password": "Wachtwoord van de gebruiker."
+                }
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "battery_state": {
+                "name": "Batterijstatus",
+                "state": {
+                    "no_state": "Onbekend",
+                    "battery_ok": "Ok",
+                    "battery_weak": "Zwak"
+                }
+            }
+        }
+    },
+    "device_automation": {
+        "trigger_subtype": {
+            "1": "Knop 1",
+            "2": "Knop 2",
+            "3": "Knop 3",
+            "4": "Knop 4",
+            "5": "Knop 5",
+            "6": "Knop 6",
+            "7": "Knop 7",
+            "8": "Knop 8"
+        },
+        "trigger_type": {
+            "initial_press": "\"{subtype}\" ingedrukt",
+            "long_release": "\"{subtype}\" losgelaten na lang indrukken",
+            "short_release": "\"{subtype}\" losgelaten na kort indrukken",
+            "double_press": "\"{subtype}\" dubbel ingedrukt"
+        }
+    }
+}

@@ -14,6 +14,7 @@
 - **Timeouts for server requests.** A request fails after 15 seconds instead of hanging for up to 5 minutes (the aiohttp default). The event request, which the server holds for up to 30 seconds, has 45 seconds, and reading the device list at startup 60 seconds.
 - **Unavailable entities when the server cannot be reached.** After 3 failed event requests in a row, all Enet entities become unavailable. They become available again at the first successful request.
 - **States refreshed after an outage.** After a new login (for example when the Enet server restarted) or after the server was unavailable, the current values of all lights, switches and covers are read again. Changes made during the outage would otherwise be missed.
+- **Dutch translation** (`translations/nl.json`) of the configuration screens, the battery state and the button triggers.
 - **Retry delay capped.** The delay between failed event requests grows by 2 seconds per attempt, up to at most 60 seconds, so the integration picks up a server that is back after a long outage within a minute.
 
 This integration connects a Gira or Jung eNet Smart Home server to Home Assistant. It reads the devices configured on the server and lets you control and monitor them from Home Assistant.
