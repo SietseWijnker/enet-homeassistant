@@ -17,3 +17,4 @@ class ButtonEventType(StrEnum):
     INITIAL_PRESS = "initial_press"
     SHORT_RELEASE = "short_release"
     LONG_RELEASE = "long_release"
+    DOUBLE_PRESS = "double_press"

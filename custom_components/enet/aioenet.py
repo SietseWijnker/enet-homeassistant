@@ -46,6 +46,7 @@ EVENT_OUTPUT_DEVICE_FUNCTION_CALLED = "outputDeviceFunctionCalled"
 VALUE_TYPE_ROCKER_STATE = "VT_ROCKER_STATE"
 VALUE_TYPE_ROCKER_SWITCH_TIME = "VT_ROCKER_SWITCH_TIME"
 VALUE_DOWN_BUTTON = "DOWN_BUTTON"
+DOUBLE_PRESS_WINDOW = 0.5  # seconds between two short releases
 EVENT_RETRY_BASE_DELAY = 2
 PING_INTERVAL = 28
 
@@ -128,6 +129,9 @@ class EnetClient:
         self._cookie = ""
         self._last_event = {}
         self._last_event_ts = 0.0
+        # (channel uid, subtype) -> monotonic time of the last short release,
+        # used to detect a double press.
+        self._last_short_release = {}
         self._bg_tasks = []
         self._raw_json = {}
         self._subscribers = []
@@ -333,6 +337,22 @@ class EnetClient:
                 event_type = ButtonEventType.LONG_RELEASE
 
         self._notify_subscribers(ButtonEvent(channel, subtype, event_type))
+
+        # Double press: two short releases of the same button within
+        # DOUBLE_PRESS_WINDOW seconds. The single press events are still sent.
+        if event_type == ButtonEventType.SHORT_RELEASE:
+            key = (channel.uid, subtype)
+            now = time.monotonic()
+            previous = self._last_short_release.get(key)
+            if previous is not None and now - previous <= DOUBLE_PRESS_WINDOW:
+                # Forget it, so a third press does not count as another double press
+                self._last_short_release.pop(key, None)
+                log.debug("Double press on %s button %s", channel.uid, subtype)
+                self._notify_subscribers(
+                    ButtonEvent(channel, subtype, ButtonEventType.DOUBLE_PRESS)
+                )
+            else:
+                self._last_short_release[key] = now
 
     def _handle_battery_state_changed(self, event):
         data = event["eventData"]

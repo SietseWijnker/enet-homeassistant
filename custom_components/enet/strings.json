@@ -81,7 +81,8 @@
     "trigger_type": {
       "initial_press": "\"{subtype}\" pressed initially",
       "short_release": "\"{subtype}\" released after short press",
-      "long_release": "\"{subtype}\" released after long press"
+      "long_release": "\"{subtype}\" released after long press",
+      "double_press": "\"{subtype}\" double pressed"
     }
   }
 }
