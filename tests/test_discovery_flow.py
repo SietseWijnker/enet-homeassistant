@@ -38,8 +38,13 @@ class ConfigFlow:
 
 
 class _Selector:
+    """Stub of a selector: voluptuous calls it to validate a value."""
+
     def __init__(self, *args, **kwargs):
         pass
+
+    def __call__(self, value):
+        return value
 
 
 _stub("homeassistant")
