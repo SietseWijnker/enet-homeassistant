@@ -48,7 +48,17 @@ VALUE_TYPE_ROCKER_SWITCH_TIME = "VT_ROCKER_SWITCH_TIME"
 VALUE_DOWN_BUTTON = "DOWN_BUTTON"
 DOUBLE_PRESS_WINDOW = 0.5  # seconds between two short releases
 EVENT_RETRY_BASE_DELAY = 2
+EVENT_RETRY_MAX_DELAY = 60
+# Consecutive failed event requests before the server is reported unavailable
+UNAVAILABLE_AFTER_FAILURES = 3
 PING_INTERVAL = 28
+# Without a timeout a hanging server blocks a request for 5 minutes (aiohttp default)
+REQUEST_TIMEOUT = 15
+REQUEST_TIMEOUTS = {
+    "requestEvents": 45,  # the server holds this request up to 30 s
+    "getDevicesWithParameterFilter": 60,
+    "getLocations": 30,
+}
 
 
 @dataclass
@@ -141,6 +151,13 @@ class EnetClient:
         self._auth_generation = 0
         self._event_subscriptions = set()
         self._battery_events_subscribed = False
+        # False while the event requests keep failing, entities are then unavailable
+        self.server_available = True
+        self._availability_callbacks = []
+        # Login generation of which the actuator values were read; after a new
+        # login (e.g. the server restarted) the values are read again.
+        self._values_generation = 0
+        self._refresh_task = None
 
         if load_file:
             with open(load_file) as fp:
@@ -155,6 +172,7 @@ class EnetClient:
         await self.simple_login()
         self.devices = await self.get_devices()
         await self.initialize_events()
+        self._values_generation = self._auth_generation
         self._bg_tasks.append(
             asyncio.create_task(
                 self.read_events(), name=f"enet event reader {self.baseurl}"
@@ -169,10 +187,71 @@ class EnetClient:
 
     async def stop(self):
         """Cancel the background tasks and wait for them to finish"""
-        for task in self._bg_tasks:
+        tasks = list(self._bg_tasks)
+        if self._refresh_task is not None:
+            tasks.append(self._refresh_task)
+            self._refresh_task = None
+        for task in tasks:
             task.cancel()
-        await asyncio.gather(*self._bg_tasks, return_exceptions=True)
+        await asyncio.gather(*tasks, return_exceptions=True)
         self._bg_tasks.clear()
+
+    def subscribe_availability(self, callback):
+        """Call callback (without arguments) when server_available changes.
+        Returns a function that unsubscribes the callback.
+        """
+        self._availability_callbacks.append(callback)
+
+        def unsubscribe():
+            self._availability_callbacks.remove(callback)
+
+        return unsubscribe
+
+    def _set_server_available(self, available: bool) -> None:
+        if available == self.server_available:
+            return
+        self.server_available = available
+        if available:
+            log.warning("Enet server is available again")
+        else:
+            log.warning("Enet server is unavailable, entities are marked unavailable")
+        for callback in list(self._availability_callbacks):
+            callback()
+
+    def _refresh_values_if_needed(self, force=False) -> None:
+        """Read all actuator values again after a new login or an outage,
+        changes during that time were missed."""
+        if not force and self._values_generation == self._auth_generation:
+            return
+        if self._refresh_task is not None and not self._refresh_task.done():
+            return
+        self._values_generation = self._auth_generation
+        self._refresh_task = asyncio.create_task(
+            self.refresh_values(), name=f"enet refresh values {self.baseurl}"
+        )
+
+    async def refresh_values(self):
+        """Fetch the current values of all actuator channels from the server"""
+        count = 0
+        for device in self.devices:
+            for channel in device.channels:
+                if not isinstance(channel, ActuatorChannel):
+                    continue
+                for output_function in list(channel.output_functions.values()):
+                    try:
+                        result = await self.request(
+                            URL.VISUALIZATION,
+                            "getCurrentValuesFromOutputDeviceFunction",
+                            {"deviceFunctionUID": output_function["uid"]},
+                        )
+                    except Exception as e:
+                        log.warning("Refreshing values failed at %s: %s", channel.name, e)
+                        return
+                    values = (result or {}).get("currentValues") or []
+                    if len(values) == 1:
+                        await channel.update_values(output_function["uid"], values)
+                        count += 1
+        log.info("Refreshed %s actuator values from the Enet server", count)
 
     async def __aenter__(self):
         await self.initialize()
@@ -225,13 +304,19 @@ class EnetClient:
         while True:
             try:
                 events = await self.get_events()
-                failcount = 0
             except Exception as e:
                 failcount += 1
-                delay = EVENT_RETRY_BASE_DELAY * failcount
+                if failcount >= UNAVAILABLE_AFTER_FAILURES:
+                    self._set_server_available(False)
+                delay = min(EVENT_RETRY_BASE_DELAY * failcount, EVENT_RETRY_MAX_DELAY)
                 log.warning("Failed to fetch events: (%s), retrying in: %s", e, delay)
                 await asyncio.sleep(delay)
                 continue
+            was_unavailable = not self.server_available
+            failcount = 0
+            self._set_server_available(True)
+            # After an outage or a new login the values may be outdated
+            self._refresh_values_if_needed(force=was_unavailable)
             if events:
                 try:
                     await self.handle_events(events)
@@ -385,7 +470,12 @@ class EnetClient:
         }
         self._api_counter += 1
         log.debug("Requesting %s%s %s", self.baseurl, url, method)
-        response = await self._session.post(f"{self.baseurl}{url}", json=req, ssl=False)
+        timeout = aiohttp.ClientTimeout(
+            total=REQUEST_TIMEOUTS.get(method, REQUEST_TIMEOUT)
+        )
+        response = await self._session.post(
+            f"{self.baseurl}{url}", json=req, ssl=False, timeout=timeout
+        )
         if get_raw:
             return response
         if response.status >= 400:

@@ -81,6 +81,7 @@ class EnetButtonEvent(EnetBaseChannelEntity, EventEntity):
     async def async_added_to_hass(self) -> None:
         """Subscribe to button events of the hub when added to hass."""
         self.async_on_remove(self.hub.subscribe(self._handle_event))
+        self._subscribe_availability()
 
     @callback
     def _handle_event(self, event) -> None:

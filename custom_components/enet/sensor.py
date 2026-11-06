@@ -176,3 +176,4 @@ class EnetBatterySensor(EnetBaseDeviceEntity, SensorEntity):
         self.async_on_remove(
             self.device.subscribe(self.async_write_ha_state)
         )
+        self._subscribe_availability()

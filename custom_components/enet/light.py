@@ -75,9 +75,11 @@ class EnetLight(EnetBaseChannelEntity, LightEntity):
         else:
             await self.channel.turn_on()
         self.async_write_ha_state()
+        self._schedule_verify(True)
 
     async def async_turn_off(self, **kwargs):
         """Turn the light off."""
         _LOGGER.debug("async_turn_off: (%s) %s", self.name, kwargs)
         await self.channel.turn_off()
         self.async_write_ha_state()
+        self._schedule_verify(False)

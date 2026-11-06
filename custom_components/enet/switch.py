@@ -44,9 +44,11 @@ class EnetSwitch(EnetBaseChannelEntity, SwitchEntity):
 
         await self.channel.turn_on()
         self.async_write_ha_state()
+        self._schedule_verify(True)
 
     async def async_turn_off(self, **kwargs) -> None:
         """Turn the switch off."""
         _LOGGER.debug("async_turn_off: (%s) %s", self.name, kwargs)
         await self.channel.turn_off()
         self.async_write_ha_state()
+        self._schedule_verify(False)
