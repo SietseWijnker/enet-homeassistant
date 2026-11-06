@@ -55,7 +55,55 @@
             }
         }
     },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Einstellungen Enet Smart Home",
+                "description": "Die Integration wird nach dem Speichern neu geladen. Adresse oder Zugangsdaten des Servers ändern Sie mit Neu konfigurieren im Menü der Integration.",
+                "data": {
+                    "double_press_window": "Doppeltes Drücken: maximale Zeit zwischen dem Drücken",
+                    "location_scenes": "Raumszenen des Servers",
+                    "verify_commands": "Befehle an Lichter und Schalter überprüfen",
+                    "verify_delay": "Überprüfen nach",
+                    "unavailable_after_failures": "Nicht verfügbar nach fehlgeschlagenen Anfragen",
+                    "request_timeout": "Zeitlimit für Befehle",
+                    "log_server_responses": "Antworten des Servers protokollieren"
+                },
+                "data_description": {
+                    "double_press_window": "Zweimal kurzes Drücken derselben Taste innerhalb dieser Zeit gilt als doppeltes Drücken.",
+                    "location_scenes": "Szenen, die der Server für jeden Raum anlegt, z. B. alle Lichter aus. Szenen mit [libenet] im Namen werden immer hinzugefügt.",
+                    "verify_commands": "Nach einem Befehl den tatsächlichen Zustand beim Server abfragen. Hat der Server den Befehl nicht ausgeführt, wird der Zustand korrigiert und das Ereignis enet_command_unconfirmed ausgelöst.",
+                    "verify_delay": "Zeit nach einem Befehl, bevor der Zustand beim Server abgefragt wird.",
+                    "unavailable_after_failures": "Anzahl fehlgeschlagener Ereignisanfragen in Folge, nach der alle Entitäten nicht verfügbar werden.",
+                    "request_timeout": "Zeit, nach der eine Anfrage an den Server fehlschlägt.",
+                    "log_server_responses": "Die Antworten des Servers ins Protokoll schreiben, um Probleme zu finden. Aktivieren Sie auch die Debug-Protokollierung im Menü der Integration."
+                }
+            }
+        }
+    },
+    "selector": {
+        "location_scenes": {
+            "options": {
+                "lights": "Lichter (alle Lichter an / aus)",
+                "blinds": "Jalousien (alle Jalousien auf / ab)"
+            }
+        }
+    },
     "entity": {
+        "scene": {
+            "location_lights_on": {
+                "name": "{location} alle Lichter an"
+            },
+            "location_lights_off": {
+                "name": "{location} alle Lichter aus"
+            },
+            "location_blinds_on": {
+                "name": "{location} alle Jalousien ab"
+            },
+            "location_blinds_off": {
+                "name": "{location} alle Jalousien auf"
+            }
+        },
         "sensor": {
             "battery_state": {
                 "name": "Batterie-Status",

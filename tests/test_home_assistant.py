@@ -52,6 +52,8 @@ SCENES = {
     "sceneActionUIDs": [
         {"sceneActionUID": "scene-1", "sceneActionName": "[libenet] Evening"},
         {"sceneActionUID": "scene-2", "sceneActionName": "Not for Home Assistant"},
+        {"sceneActionUID": "scene-3", "sceneActionName": "~LocSceneLightsOff_Kitchen"},
+        {"sceneActionUID": "scene-4", "sceneActionName": "~LocSceneBlindsOn_Kitchen"},
     ]
 }
 
@@ -277,16 +279,95 @@ class HomeAssistantTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(len(await self.call("cover", "stop_cover_tilt", cover)), 1)
         self.assert_no_warnings()
 
-    async def test_only_libenet_scenes_are_added_and_activated(self):
+    async def test_libenet_and_location_light_scenes_are_added_and_activated(self):
+        """By default libenet scenes and the location scenes of lights are added."""
         scenes = self.entities("scene")
-        self.assertEqual([e.unique_id for e in scenes], ["scene-1"])
+        self.assertEqual(sorted(e.unique_id for e in scenes), ["scene-1", "scene-3"])
         scene = self.entity_id("scene", "Enet Smart Home Server Evening")
-
-        self.hub.requests.clear()
-        await self.hass.services.async_call(
-            "scene", "turn_on", {"entity_id": scene}, blocking=True
+        location_scene = self.entity_id(
+            "scene", "Enet Smart Home Server Kitchen all lights off"
         )
-        self.assertEqual(self.requests("executeAction"), [{"actionUID": "scene-1"}])
+        self.assertEqual(location_scene, "scene.enet_smart_home_server_kitchen_all_lights_off")
+
+        for entity_id, uid in ((scene, "scene-1"), (location_scene, "scene-3")):
+            self.hub.requests.clear()
+            await self.hass.services.async_call(
+                "scene", "turn_on", {"entity_id": entity_id}, blocking=True
+            )
+            self.assertEqual(self.requests("executeAction"), [{"actionUID": uid}])
+        self.assert_no_warnings()
+
+    async def test_options_flow_changes_settings_and_reloads(self):
+        result = await self.hass.config_entries.options.async_init(self.entry.entry_id)
+        self.assertEqual(result["type"], "form")
+        result = await self.hass.config_entries.options.async_configure(
+            result["flow_id"],
+            {
+                "double_press_window": 0.8,
+                "location_scenes": ["lights", "blinds"],
+                "verify_commands": False,
+                "verify_delay": 10,
+                "unavailable_after_failures": 5,
+                "request_timeout": 20,
+                "log_server_responses": True,
+            },
+        )
+        self.assertEqual(result["type"], "create_entry")
+        await self.hass.async_block_till_done()
+
+        self.assertEqual(self.entry.state, config_entries.ConfigEntryState.LOADED)
+        hub = self.entry.runtime_data
+        self.assertIsNot(hub, self.hub, "the entry was not reloaded")
+        self.assertEqual(hub.double_press_window, 0.8)
+        self.assertFalse(hub.verify_commands)
+        self.assertEqual(hub.verify_delay, 10)
+        self.assertEqual(hub.unavailable_after_failures, 5)
+        self.assertEqual(hub.request_timeout, 20)
+        self.assertTrue(hub._debug_requests)
+        self.assertEqual(
+            sorted(e.unique_id for e in self.entities("scene")),
+            ["scene-1", "scene-3", "scene-4"],
+        )
+        self.entity_id("scene", "Enet Smart Home Server Kitchen all blinds down")
+        self.assert_no_warnings()
+
+    async def test_double_press(self):
+        """Two short releases within the window fire double_press after the single events."""
+        bus = []
+        self.hass.bus.async_listen("enet_event", lambda event: bus.append(event.data["type"]))
+        channel, function = next(
+            (channel, function)
+            for device in self.hub.devices
+            for channel in device.channels
+            for function in channel.output_functions.values()
+            if function["function"] == "buttonRocker"
+        )
+
+        def release(sequence):
+            return {
+                "sequenceNumber": sequence,
+                "event": "outputDeviceFunctionCalled",
+                "eventData": {
+                    "deviceUID": channel.device.uid,
+                    "channelNumber": channel.channel["no"],
+                    "deviceFunctionUID": function["uid"],
+                    "values": [
+                        {"valueTypeID": "VT_ROCKER_STATE", "value": "UP_BUTTON"},
+                        {"valueTypeID": "VT_ROCKER_SWITCH_TIME", "value": 10 + sequence},
+                    ],
+                },
+            }
+
+        await self.hub.handle_events({"events": [release(1)]})
+        await self.hub.handle_events({"events": [release(2)]})
+        await self.hass.async_block_till_done()
+        self.assertEqual(bus, ["short_release", "short_release", "double_press"])
+
+        # A third press starts a new double press
+        bus.clear()
+        await self.hub.handle_events({"events": [release(3)]})
+        await self.hass.async_block_till_done()
+        self.assertEqual(bus, ["short_release"])
         self.assert_no_warnings()
 
     async def test_button_events(self):

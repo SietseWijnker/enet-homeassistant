@@ -37,18 +37,33 @@ class ConfigFlow:
         return {"type": "abort", "reason": reason}
 
 
+class _Selector:
+    def __init__(self, *args, **kwargs):
+        pass
+
+
 _stub("homeassistant")
 _stub("homeassistant.components")
 _stub("homeassistant.components.zeroconf")
-_stub("homeassistant.config_entries", ConfigFlow=ConfigFlow)
+_stub("homeassistant.config_entries", ConfigFlow=ConfigFlow, OptionsFlow=object)
 _stub(
     "homeassistant.const",
     CONF_PASSWORD="password",
     CONF_URL="url",
     CONF_USERNAME="username",
 )
-_stub("homeassistant.core", HomeAssistant=object)
+_stub("homeassistant.core", HomeAssistant=object, callback=lambda func: func)
 _stub("homeassistant.exceptions", HomeAssistantError=Exception)
+_stub("homeassistant.helpers")
+_stub(
+    "homeassistant.helpers.selector",
+    BooleanSelector=_Selector,
+    NumberSelector=_Selector,
+    NumberSelectorConfig=_Selector,
+    NumberSelectorMode=types.SimpleNamespace(BOX="box", SLIDER="slider"),
+    SelectSelector=_Selector,
+    SelectSelectorConfig=_Selector,
+)
 sys.modules["homeassistant"].config_entries = sys.modules["homeassistant.config_entries"]
 sys.modules["homeassistant.components"].zeroconf = sys.modules[
     "homeassistant.components.zeroconf"

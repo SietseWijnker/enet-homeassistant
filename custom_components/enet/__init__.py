@@ -13,7 +13,17 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.device_registry import DeviceEntry
 
 from .aioenet import AuthError, EnetClient, EnetServerError, normalize_url
-from .const import DOMAIN, NAME_ENET_CONTROLLER
+from .const import (
+    CONF_DOUBLE_PRESS_WINDOW,
+    CONF_LOG_SERVER_RESPONSES,
+    CONF_REQUEST_TIMEOUT,
+    CONF_UNAVAILABLE_AFTER_FAILURES,
+    CONF_VERIFY_COMMANDS,
+    CONF_VERIFY_DELAY,
+    DEFAULT_OPTIONS,
+    DOMAIN,
+    NAME_ENET_CONTROLLER,
+)
 from .device import async_setup_devices
 from .events import async_setup_enet_events
 
@@ -31,6 +41,17 @@ PLATFORMS: list[Platform] = [
 type EnetConfigEntry = ConfigEntry[EnetClient]
 
 
+def apply_options(hub: EnetClient, options) -> None:
+    """Set the settings of the client from the options of the config entry."""
+    options = {**DEFAULT_OPTIONS, **options}
+    hub.double_press_window = float(options[CONF_DOUBLE_PRESS_WINDOW])
+    hub.verify_commands = bool(options[CONF_VERIFY_COMMANDS])
+    hub.verify_delay = int(options[CONF_VERIFY_DELAY])
+    hub.unavailable_after_failures = int(options[CONF_UNAVAILABLE_AFTER_FAILURES])
+    hub.request_timeout = int(options[CONF_REQUEST_TIMEOUT])
+    hub._debug_requests = bool(options[CONF_LOG_SERVER_RESPONSES])
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: EnetConfigEntry) -> bool:
     """Set up Enet Smart Home from a config entry."""
     _LOGGER.debug("Setting up Enet Smart Home entry")
@@ -43,6 +64,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: EnetConfigEntry) -> bool
         # load_file="/workspaces/enet-homeassistant/examples/config_entry-enet-oliver.json",
         # ,noconnect=True, load_file="/workspaces/enet-homeassistant/examples/config_entry-enet-01JRNS5MR3V9DX73M7BQ79KC40.json"
     )
+    apply_options(hub, entry.options)
 
     try:
         await hub.initialize()
@@ -69,6 +91,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: EnetConfigEntry) -> bool
     await async_setup_devices(hass, entry, hub)
     async_setup_enet_events(hass, entry, hub)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Reload when the options change. Other updates of the entry (unique id,
+    # reconfigure, reauth) leave the options alone; those reload themselves.
+    applied_options = dict(entry.options)
+
+    async def _async_entry_updated(hass: HomeAssistant, entry: EnetConfigEntry) -> None:
+        if dict(entry.options) != applied_options:
+            await hass.config_entries.async_reload(entry.entry_id)
+
+    entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
     return True
 
 

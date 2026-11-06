@@ -14,7 +14,9 @@
 - **Timeouts for server requests.** A request fails after 15 seconds instead of hanging for up to 5 minutes (the aiohttp default). The event request, which the server holds for up to 30 seconds, has 45 seconds, and reading the device list at startup 60 seconds.
 - **Unavailable entities when the server cannot be reached.** After 3 failed event requests in a row, all Enet entities become unavailable. They become available again at the first successful request.
 - **States refreshed after an outage.** After a new login (for example when the Enet server restarted) or after the server was unavailable, the current values of all lights, switches and covers are read again. Changes made during the outage would otherwise be missed.
-- **Dutch translation** (`translations/nl.json`) of the configuration screens, the battery state and the button triggers.
+- **Settings** with the **Configure** button of the integration, see [Options](#options).
+- **Location scenes.** The Enet server creates scenes for every location: all lights on/off and all blinds up/down. They can be added as scenes, named like "Kitchen all lights off" (translated). The lights scenes are added by default, the blinds scenes can be switched on in the options. Two locations with the same name get scenes with the same name; Home Assistant adds `_2` to the entity id of the second one.
+- **Dutch translation** (`translations/nl.json`) of the configuration screens, the options, the battery state, the scenes and the button triggers.
 - **Retry delay capped.** The delay between failed event requests grows by 2 seconds per attempt, up to at most 60 seconds, so the integration picks up a server that is back after a long outage within a minute.
 
 This integration connects a Gira or Jung eNet Smart Home server to Home Assistant. It reads the devices configured on the server and lets you control and monitor them from Home Assistant.
@@ -86,6 +88,20 @@ The login is checked before the integration is added. Each Enet server can only 
 To change the URL or the login later, open the integration and select **Reconfigure**. If the server rejects the login, Home Assistant asks for the username and password again.
 
 Setting up a server found by network discovery is not supported yet. Add the integration manually as described above.
+
+### Options
+
+Open the integration and select **Configure** (this fork). The integration reloads after saving.
+
+| Option | Default | Description |
+|---|---|---|
+| Double press: maximum time between the presses | 0.5 s | Two short presses of the same button within this time (0.2 – 1.5 s) are a double press. |
+| Location scenes of the server | Lights | Add the location scenes of lights and/or blinds. |
+| Verify commands to lights and switches | On | Read the real state from the server after a command, see [Changes in this fork](#changes-in-this-fork). |
+| Verify after | 8 s | Time after a command before the state is read. |
+| Unavailable after failed requests | 3 | Failed event requests in a row before all entities become unavailable. |
+| Timeout of commands | 15 s | Time after which a request to the server fails. |
+| Log server responses | Off | Log the responses of the server. Also enable debug logging in the menu of the integration. |
 
 ## Removal
 

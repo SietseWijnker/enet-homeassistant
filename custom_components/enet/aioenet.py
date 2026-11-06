@@ -5,6 +5,7 @@ import functools
 import time
 import json
 import random
+import re
 
 from dataclasses import dataclass
 from typing import Any, Dict, Union
@@ -118,6 +119,19 @@ def auth_if_needed(func):
     return auth_wrapper
 
 
+LOCATION_SCENE_PATTERN = re.compile(r"^~LocScene(Lights|Blinds)(On|Off)_(.+)$")
+
+
+def parse_location_scene(name):
+    """Return (type, action, location) of a location scene name of the server,
+    e.g. ("lights", "off", "Kitchen") for "~LocSceneLightsOff_Kitchen", or None.
+    """
+    match = LOCATION_SCENE_PATTERN.match(name)
+    if match is None:
+        return None
+    return match.group(1).lower(), match.group(2).lower(), match.group(3)
+
+
 def normalize_url(url):
     """Return the url of an Enet server in one form, to compare servers."""
     return url.strip().rstrip("/")
@@ -140,6 +154,12 @@ class EnetClient:
             connector = aiohttp.TCPConnector(keepalive_timeout=30)
             self._session = aiohttp.ClientSession(cookie_jar=jar, connector=connector)
         self._debug_requests = False
+        # Settings, Home Assistant sets them from the options of the config entry
+        self.double_press_window = DOUBLE_PRESS_WINDOW
+        self.unavailable_after_failures = UNAVAILABLE_AFTER_FAILURES
+        self.request_timeout = REQUEST_TIMEOUT
+        self.verify_commands = True
+        self.verify_delay = 8
         self._api_counter = 1
         self._cookie = ""
         self._last_event = {}
@@ -311,7 +331,7 @@ class EnetClient:
                 events = await self.get_events()
             except Exception as e:
                 failcount += 1
-                if failcount >= UNAVAILABLE_AFTER_FAILURES:
+                if failcount >= self.unavailable_after_failures:
                     self._set_server_available(False)
                 delay = min(EVENT_RETRY_BASE_DELAY * failcount, EVENT_RETRY_MAX_DELAY)
                 log.warning("Failed to fetch events: (%s), retrying in: %s", e, delay)
@@ -429,12 +449,12 @@ class EnetClient:
         self._notify_subscribers(ButtonEvent(channel, subtype, event_type))
 
         # Double press: two short releases of the same button within
-        # DOUBLE_PRESS_WINDOW seconds. The single press events are still sent.
+        # double_press_window seconds. The single press events are still sent.
         if event_type == ButtonEventType.SHORT_RELEASE:
             key = (channel.uid, subtype)
             now = time.monotonic()
             previous = self._last_short_release.get(key)
-            if previous is not None and now - previous <= DOUBLE_PRESS_WINDOW:
+            if previous is not None and now - previous <= self.double_press_window:
                 # Forget it, so a third press does not count as another double press
                 self._last_short_release.pop(key, None)
                 log.debug("Double press on %s button %s", channel.uid, subtype)
@@ -476,7 +496,7 @@ class EnetClient:
         self._api_counter += 1
         log.debug("Requesting %s%s %s", self.baseurl, url, method)
         timeout = aiohttp.ClientTimeout(
-            total=REQUEST_TIMEOUTS.get(method, REQUEST_TIMEOUT)
+            total=REQUEST_TIMEOUTS.get(method, self.request_timeout)
         )
         response = await self._session.post(
             f"{self.baseurl}{url}", json=req, ssl=False, timeout=timeout
@@ -650,18 +670,28 @@ class EnetClient:
         recurse_locations(locations, [])
         return device_to_loc
 
-    async def get_scenes(self, only_libenet=True):
-        """Get all scene names and corresponding uid from the server"""
+    async def get_scenes(self, location_scene_types=()):
+        """Return a list of (name, uid) of the scenes for Home Assistant.
+
+        These are the scenes with "libenet" in the name, and the location
+        scenes the server creates for every location (all lights on/off, all
+        blinds up/down) of the types in location_scene_types ("lights",
+        "blinds"). Names are not unique: two locations can have the same name.
+        """
         result = await self.request(URL.SCENE, "getSceneActionUIDs", None)
         if not result:
-            return {}
-        scenes = {}
+            return []
+        scenes = []
         for scene in result["sceneActionUIDs"]:
             scene_uid = scene["sceneActionUID"]
             scene_name = scene["sceneActionName"]
-            if only_libenet and "libenet" not in scene_name:
+            location_scene = parse_location_scene(scene_name)
+            if location_scene is not None:
+                if location_scene[0] not in location_scene_types:
+                    continue
+            elif "libenet" not in scene_name:
                 continue
-            scenes[scene_name] = scene_uid
+            scenes.append((scene_name, scene_uid))
         return scenes
 
     async def activate_scene(self, scene_uid):

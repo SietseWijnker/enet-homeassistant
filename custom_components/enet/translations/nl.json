@@ -55,7 +55,55 @@
             }
         }
     },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Instellingen Enet Smart Home",
+                "description": "De integratie herlaadt na het opslaan. Het adres of de inloggegevens van de server wijzig je met Opnieuw configureren in het menu van de integratie.",
+                "data": {
+                    "double_press_window": "Dubbel indrukken: maximale tijd tussen de twee keer indrukken",
+                    "location_scenes": "Ruimtescènes van de server",
+                    "verify_commands": "Opdrachten aan lampen en schakelaars controleren",
+                    "verify_delay": "Controleren na",
+                    "unavailable_after_failures": "Niet beschikbaar na mislukte verzoeken",
+                    "request_timeout": "Tijdslimiet van opdrachten",
+                    "log_server_responses": "Antwoorden van de server loggen"
+                },
+                "data_description": {
+                    "double_press_window": "Twee keer kort indrukken van dezelfde knop binnen deze tijd telt als dubbel indrukken.",
+                    "location_scenes": "Scènes die de server voor elke ruimte aanmaakt, zoals alle lampen uit. Scènes met [libenet] in de naam worden altijd toegevoegd.",
+                    "verify_commands": "Na een opdracht de echte stand bij de server opvragen. Heeft de server de opdracht niet uitgevoerd, dan wordt de stand gecorrigeerd en het event enet_command_unconfirmed afgevuurd.",
+                    "verify_delay": "Tijd na een opdracht voordat de stand bij de server wordt opgevraagd.",
+                    "unavailable_after_failures": "Aantal mislukte verzoeken om events achter elkaar waarna alle entiteiten niet beschikbaar worden.",
+                    "request_timeout": "Tijd waarna een verzoek aan de server mislukt.",
+                    "log_server_responses": "De antwoorden van de server in het logboek schrijven, om problemen op te sporen. Zet ook debug-logging aan in het menu van de integratie."
+                }
+            }
+        }
+    },
+    "selector": {
+        "location_scenes": {
+            "options": {
+                "lights": "Lampen (alle lampen aan / uit)",
+                "blinds": "Zonwering (alle zonwering omhoog / omlaag)"
+            }
+        }
+    },
     "entity": {
+        "scene": {
+            "location_lights_on": {
+                "name": "{location} alle lampen aan"
+            },
+            "location_lights_off": {
+                "name": "{location} alle lampen uit"
+            },
+            "location_blinds_on": {
+                "name": "{location} alle zonwering omlaag"
+            },
+            "location_blinds_off": {
+                "name": "{location} alle zonwering omhoog"
+            }
+        },
         "sensor": {
             "battery_state": {
                 "name": "Batterijstatus",

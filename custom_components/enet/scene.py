@@ -3,7 +3,14 @@ import logging
 from homeassistant.components.scene import Scene as SceneEntity
 from homeassistant.helpers.entity import DeviceInfo
 
-from .const import DOMAIN, NAME_ENET_CONTROLLER, NAME_ENET_SERVER
+from .aioenet import parse_location_scene
+from .const import (
+    CONF_LOCATION_SCENES,
+    DEFAULT_OPTIONS,
+    DOMAIN,
+    NAME_ENET_CONTROLLER,
+    NAME_ENET_SERVER,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -12,32 +19,40 @@ async def async_setup_entry(hass, entry, async_add_entities):
     """Add Enet scenes"""
     hub = entry.runtime_data
 
-    scenes = await hub.get_scenes()
-    for scene_name in scenes:
-        scene_entity = EnetSceneEntity(hub, scene_name, scenes[scene_name])
-        async_add_entities([scene_entity])
+    location_scene_types = entry.options.get(
+        CONF_LOCATION_SCENES, DEFAULT_OPTIONS[CONF_LOCATION_SCENES]
+    )
+    scenes = await hub.get_scenes(location_scene_types)
+    async_add_entities(
+        [EnetSceneEntity(hub, scene_name, scene_uid) for scene_name, scene_uid in scenes]
+    )
 
     _LOGGER.debug("Finished async setup()")
 
 
 class EnetSceneEntity(SceneEntity):
-    """Representation of a Scene entity."""
+    """Representation of a Scene entity.
+
+    Scenes made for Home Assistant ("[libenet...]" in the name) use their own
+    name. The location scenes of the server ("~LocSceneLightsOff_Kitchen")
+    get a translated name, e.g. "Kitchen all lights off".
+    """
 
     _attr_has_entity_name = True
 
     def __init__(self, hub, name, uid):
-        self._name = name
         self.uid = uid
         self.hub = hub
-        _LOGGER.debug("EnetSceneEntity.init()  done %s", self.name)
-
-    @property
-    def name(self):
-        """Return the name of the scene."""
-        name = self._name
-        if name.startswith("[libenet") and "]" in name:
-            name = name.split("]", 1)[-1].strip()
-        return name
+        location_scene = parse_location_scene(name)
+        if location_scene is not None:
+            scene_type, action, location = location_scene
+            self._attr_translation_key = f"location_{scene_type}_{action}"
+            self._attr_translation_placeholders = {"location": location}
+        else:
+            if name.startswith("[libenet") and "]" in name:
+                name = name.split("]", 1)[-1].strip()
+            self._attr_name = name
+        _LOGGER.debug("EnetSceneEntity.init() done %s", name)
 
     @property
     def unique_id(self):

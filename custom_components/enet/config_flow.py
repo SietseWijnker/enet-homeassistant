@@ -11,13 +11,33 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD, CONF_URL, CONF_USERNAME
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.components import zeroconf
+from homeassistant.helpers.selector import (
+    BooleanSelector,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+    SelectSelector,
+    SelectSelectorConfig,
+)
 
 from . import aioenet
 from .aioenet import normalize_url
-from .const import DOMAIN
+from .const import (
+    CONF_DOUBLE_PRESS_WINDOW,
+    CONF_LOCATION_SCENES,
+    CONF_LOG_SERVER_RESPONSES,
+    CONF_REQUEST_TIMEOUT,
+    CONF_UNAVAILABLE_AFTER_FAILURES,
+    CONF_VERIFY_COMMANDS,
+    CONF_VERIFY_DELAY,
+    DEFAULT_OPTIONS,
+    DOMAIN,
+    LOCATION_SCENES_BLINDS,
+    LOCATION_SCENES_LIGHTS,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,6 +48,37 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_URL, default="http://"): str,
         vol.Required(CONF_USERNAME, default="admin"): str,
         vol.Required(CONF_PASSWORD, default="admin"): str,
+    }
+)
+
+
+def _seconds(minimum, maximum, step=1.0, mode=NumberSelectorMode.BOX):
+    return NumberSelector(
+        NumberSelectorConfig(
+            min=minimum, max=maximum, step=step, mode=mode, unit_of_measurement="s"
+        )
+    )
+
+
+OPTIONS_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_DOUBLE_PRESS_WINDOW): _seconds(
+            0.2, 1.5, 0.1, NumberSelectorMode.SLIDER
+        ),
+        vol.Required(CONF_LOCATION_SCENES): SelectSelector(
+            SelectSelectorConfig(
+                options=[LOCATION_SCENES_LIGHTS, LOCATION_SCENES_BLINDS],
+                multiple=True,
+                translation_key=CONF_LOCATION_SCENES,
+            )
+        ),
+        vol.Required(CONF_VERIFY_COMMANDS): BooleanSelector(),
+        vol.Required(CONF_VERIFY_DELAY): _seconds(3, 30),
+        vol.Required(CONF_UNAVAILABLE_AFTER_FAILURES): NumberSelector(
+            NumberSelectorConfig(min=1, max=10, step=1, mode=NumberSelectorMode.BOX)
+        ),
+        vol.Required(CONF_REQUEST_TIMEOUT): _seconds(5, 60),
+        vol.Required(CONF_LOG_SERVER_RESPONSES): BooleanSelector(),
     }
 )
 
@@ -66,6 +117,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Enet Smart Home."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> config_entries.OptionsFlow:
+        """Return the flow of the Configure button."""
+        return EnetOptionsFlow()
 
     def _url_configured(self, url: str, exclude_entry_id: str | None = None) -> bool:
         """Return True if another config entry already uses the Enet server at url."""
@@ -205,6 +264,24 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if self._async_current_entries():
             return self.async_abort(reason="already_configured")
         return self.async_abort(reason="discovery_not_supported")
+
+
+class EnetOptionsFlow(config_entries.OptionsFlow):
+    """Change the settings of the integration. The integration reloads after a change."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Show and save the options."""
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(
+                OPTIONS_SCHEMA, {**DEFAULT_OPTIONS, **self.config_entry.options}
+            ),
+        )
 
 
 class CannotConnect(HomeAssistantError):

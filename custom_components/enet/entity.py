@@ -11,7 +11,6 @@ _LOGGER = logging.getLogger(__name__)
 # After a command, ask the server for the real state. The state in Home Assistant
 # is set before the server confirms, so a command the server did not execute
 # would otherwise go unnoticed.
-VERIFY_DELAY = 8  # seconds
 EVENT_COMMAND_UNCONFIRMED = "enet_command_unconfirmed"
 
 
@@ -102,15 +101,17 @@ class EnetBaseChannelEntity(EnetBaseEntity, Entity):
         self.async_write_ha_state()
 
     def _schedule_verify(self, expected_on: bool) -> None:
-        """Check after VERIFY_DELAY seconds that the server executed an on/off command."""
+        """Check after verify_delay seconds that the server executed an on/off command."""
         self._verify_seq = getattr(self, "_verify_seq", 0) + 1
+        if not self._enet_client().verify_commands:
+            return
         self.hass.async_create_background_task(
             self._verify(expected_on, self._verify_seq),
             name=f"enet verify {self.entity_id}",
         )
 
     async def _verify(self, expected_on: bool, seq: int) -> None:
-        await asyncio.sleep(VERIFY_DELAY)
+        await asyncio.sleep(self._enet_client().verify_delay)
         if seq != self._verify_seq:
             return  # a newer command was sent, that one is checked instead
         try:

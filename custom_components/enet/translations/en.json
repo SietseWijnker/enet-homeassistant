@@ -55,7 +55,55 @@
             }
         }
     },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Enet Smart Home settings",
+                "description": "The integration reloads after saving. To change the address or the login of the server, use Reconfigure in the menu of the integration.",
+                "data": {
+                    "double_press_window": "Double press: maximum time between the presses",
+                    "location_scenes": "Location scenes of the server",
+                    "verify_commands": "Verify commands to lights and switches",
+                    "verify_delay": "Verify after",
+                    "unavailable_after_failures": "Unavailable after failed requests",
+                    "request_timeout": "Timeout of commands",
+                    "log_server_responses": "Log server responses"
+                },
+                "data_description": {
+                    "double_press_window": "Two short presses of the same button within this time are a double press.",
+                    "location_scenes": "Scenes the server creates for every location, like all lights off. Scenes with [libenet] in the name are always added.",
+                    "verify_commands": "Read the real state from the server after a command. If the server did not execute it, the state is corrected and the event enet_command_unconfirmed is fired.",
+                    "verify_delay": "Time after a command before the state is read from the server.",
+                    "unavailable_after_failures": "Number of failed event requests in a row after which all entities become unavailable.",
+                    "request_timeout": "Time after which a request to the server fails.",
+                    "log_server_responses": "Write the responses of the server to the log, to find problems. Also enable debug logging in the menu of the integration."
+                }
+            }
+        }
+    },
+    "selector": {
+        "location_scenes": {
+            "options": {
+                "lights": "Lights (all lights on / off)",
+                "blinds": "Blinds (all blinds up / down)"
+            }
+        }
+    },
     "entity": {
+        "scene": {
+            "location_lights_on": {
+                "name": "{location} all lights on"
+            },
+            "location_lights_off": {
+                "name": "{location} all lights off"
+            },
+            "location_blinds_on": {
+                "name": "{location} all blinds down"
+            },
+            "location_blinds_off": {
+                "name": "{location} all blinds up"
+            }
+        },
         "sensor": {
             "battery_state": {
                 "name": "Battery state",
