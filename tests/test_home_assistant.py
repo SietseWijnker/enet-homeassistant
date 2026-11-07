@@ -287,7 +287,8 @@ class HomeAssistantTests(unittest.IsolatedAsyncioTestCase):
         location_scene = self.entity_id(
             "scene", "Enet Smart Home Server Kitchen all lights off"
         )
-        self.assertEqual(location_scene, "scene.enet_smart_home_server_kitchen_all_lights_off")
+        # English entity id without the device name, whatever the language
+        self.assertEqual(location_scene, "scene.kitchen_all_lights_off")
 
         for entity_id, uid in ((scene, "scene-1"), (location_scene, "scene-3")):
             self.hub.requests.clear()

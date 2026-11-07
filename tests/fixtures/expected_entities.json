@@ -332,7 +332,7 @@
     "name": "Enet Smart Home Server Evening"
   },
   "scene-3": {
-    "entity_id": "scene.enet_smart_home_server_kitchen_all_lights_off",
+    "entity_id": "scene.kitchen_all_lights_off",
     "name": "Enet Smart Home Server Kitchen all lights off"
   }
 }

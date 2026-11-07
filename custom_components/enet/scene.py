@@ -2,6 +2,7 @@
 import logging
 from homeassistant.components.scene import Scene as SceneEntity
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.util import slugify
 
 from .aioenet import parse_location_scene
 from .const import (
@@ -13,6 +14,15 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# English entity ids of the location scenes, independent of the language of
+# Home Assistant and of the area of the controller: scene.kitchen_all_lights_off
+LOCATION_SCENE_OBJECT_IDS = {
+    "location_lights_on": "all_lights_on",
+    "location_lights_off": "all_lights_off",
+    "location_blinds_on": "all_blinds_down",
+    "location_blinds_off": "all_blinds_up",
+}
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -48,6 +58,12 @@ class EnetSceneEntity(SceneEntity):
             scene_type, action, location = location_scene
             self._attr_translation_key = f"location_{scene_type}_{action}"
             self._attr_translation_placeholders = {"location": location}
+            # Only used when the entity is registered; Home Assistant adds _2
+            # when two locations have the same name.
+            self.entity_id = (
+                f"scene.{slugify(location)}_"
+                f"{LOCATION_SCENE_OBJECT_IDS[self._attr_translation_key]}"
+            )
         else:
             if name.startswith("[libenet") and "]" in name:
                 name = name.split("]", 1)[-1].strip()
